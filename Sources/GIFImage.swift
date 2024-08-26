@@ -1,3 +1,10 @@
+//
+//  GIFImage.swift
+//
+//
+//  Created by Igor Ferreira on 06/04/2022.
+//
+
 import SwiftUI
 
 /// `GIFImage` is a `View` that loads a `Data` object from a source into `CoreImage.CGImageSource`, parse the image source
@@ -10,9 +17,8 @@ public struct GIFImage: View {
     private let presentationController: PresentationController
 
     @Environment(\.imageLoader) var imageLoader
+    @State @MainActor private var store: PresentationStore
     @State @MainActor private var frame: RawImage?
-    @Binding public var loop: Bool
-    @Binding public var animate: Bool
     @State private var presentationTask: Task<(), Never>?
 
     /// `GIFImage` is a `View` that loads a `Data` object from a source into `CoreImage.CGImageSource`, parse the image source
@@ -37,8 +43,7 @@ public struct GIFImage: View {
     ) {
         self.init(
             source: source,
-            animate: .constant(animate),
-            loop: .constant(loop),
+            store: .init(animate: animate, loop: loop),
             placeholder: placeholder,
             errorImage: errorImage,
             frameRate: frameRate,
@@ -58,6 +63,7 @@ public struct GIFImage: View {
     ///   - loopAction: Closure called whenever the GIF finishes rendering one cycle of the action
     public init(
         source: GIFSource,
+        store: PresentationStore = .init(animate: true, loop: true),
         animate: Binding<Bool> = Binding.constant(true),
         loop: Binding<Bool> = Binding.constant(true),
         placeholder: RawImage = RawImage(),
@@ -66,16 +72,13 @@ public struct GIFImage: View {
         loopAction: @Sendable @escaping (GIFSource) async throws -> Void = { _ in }
     ) {
         self.source = source
-        self._animate = animate
-        self._loop = loop
+        self._store = .init(wrappedValue: store)
         self.placeholder = placeholder
         self.errorImage = errorImage
         
         self.presentationController = PresentationController(
             source: source,
             frameRate: frameRate,
-            animate: animate,
-            loop: loop,
             action: loopAction
         )
     }
@@ -84,10 +87,10 @@ public struct GIFImage: View {
         Image.loadImage(with: frame ?? placeholder)
             .resizable()
             .scaledToFit()
-            .onChange(of: loop) { _, newValue in
+            .onChange(of: store.loop) { newValue in
                 handle(loop: newValue)
             }
-            .onChange(of: animate) { _, newValue in
+            .onChange(of: store.animate) { newValue in
                 handle(animate: newValue)
             }
             .task(id: source, load)
@@ -108,6 +111,7 @@ public struct GIFImage: View {
     @Sendable private func load() {
         presentationTask?.cancel()
         presentationTask = Task { await presentationController.start(
+            store: store,
             imageLoader: imageLoader,
             fallbackImage: errorImage ?? placeholder,
             frameUpdate: setFrame(_:)

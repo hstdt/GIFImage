@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  CFString+GIFImage.swift
 //  
 //
 //  Created by Igor Ferreira on 05/04/2022.

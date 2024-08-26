@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  GIFSource.swift
 //  
 //
 //  Created by Igor Ferreira on 29/10/2020.

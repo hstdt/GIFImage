@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  CGImageSourceFrameSequence.swift
 //  
 //
 //  Created by Igor Ferreira on 05/04/2022.

@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  PresentationController.swift
+//
 //
 //  Created by Igor Ferreira on 9/9/22.
 //
@@ -14,39 +14,40 @@ struct PresentationController {
     let source: GIFSource
     let frameRate: FrameRate
     let action: (GIFSource) async throws -> Void
-    @Binding var animate: Bool
-    @Binding var loop: Bool
-    
+
     init(
         source: GIFSource,
         frameRate: FrameRate,
-        animate: Binding<Bool>,
-        loop: Binding<Bool>,
         action: @Sendable @escaping (GIFSource) async throws -> Void = { _ in }
     ) {
         self.source = source
         self.action = action
         self.frameRate = frameRate
-        self._animate = animate
-        self._loop = loop
     }
-    
-    func start(imageLoader: ImageLoader, fallbackImage: RawImage, frameUpdate: (RawImage) async -> Void) async {
+
+    func start(store: GIFImage.PresentationStore, imageLoader: ImageLoader, fallbackImage: RawImage, frameUpdate: (RawImage) async -> Void) async {
         do {
             repeat {
                 for try await imageFrame in try await imageLoader.load(source: source) {
                     try await update(imageFrame, frameUpdate: frameUpdate)
-                    if !animate { break }
+                    if !store.animate {
+                        break
+                    }
                 }
+                if store.animate {
+                    try await action(source)
+                }
+            } while store.loop // TDT: 相比原版去掉了 && store.animate, 将Action放在loop结束之后执行, 同时不断的进行update，避免Watcn上可能是残留导致的闪烁，同时保证action仅执行一次。
+            if !store.animate {
                 try await action(source)
-            } while(self.loop && self.animate)
-        } catch {
-            if !(error is CancellationError) {
-                await frameUpdate(fallbackImage)
             }
+        } catch is CancellationError {
+
+        } catch {
+            await frameUpdate(fallbackImage)
         }
     }
-    
+
     private func update(_ imageFrame: ImageFrame, frameUpdate: (RawImage) async -> Void) async throws {
         await frameUpdate(RawImage.create(with: imageFrame.image))
         let calculatedInterval = imageFrame.interval ?? kDefaultGIFFrameInterval
