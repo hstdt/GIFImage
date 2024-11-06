@@ -28,6 +28,7 @@ struct PresentationController {
     func start(store: GIFImage.PresentationStore, imageLoader: ImageLoader, fallbackImage: RawImage, frameUpdate: (RawImage) async -> Void) async {
         do {
             repeat {
+                try Task.checkCancellation()
                 for try await imageFrame in try await imageLoader.load(source: source) {
                     try await update(imageFrame, frameUpdate: frameUpdate)
                     if !store.animate {
